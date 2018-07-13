@@ -1,7 +1,7 @@
 module Musica where
 
-  data Nota = N Float Int
-    deriving Show
+type Nota = (Float,Int)
 
-  notas :: [Nota]
-  notas = [N 1.0 0, N 2.0 3]
+notas :: [Nota]
+notas = [(0.5 ,1),(0.6 ,1)]
+
