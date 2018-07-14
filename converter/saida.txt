@@ -1,18 +1,4 @@
-module Musica where
-
-data Nota = Not{
-  n_tempo :: Float,
-  n_tipo :: Int,
-  n_duracao :: Float
-}
-data Musica = Mus{
-  --Quantos px por segundo a bolinha cai
-  mus_vel :: Float,
-  mus_notas :: [Nota]
-
-}
-naruto :: Musica
-naruto = Mus (512) [
+[
   (Not 10.02231140625 3 0.3660710625)
  , (Not 10.39731103125 0 0.1339284375)
  , (Not 10.54016803125 0 0.1339284375)

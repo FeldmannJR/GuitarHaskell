@@ -15,7 +15,7 @@ data GuitarState = State{
   vel :: Float
 }
 data NotaBotao = Botao{
-  nota :: (Float,Int),
+  nota :: Nota,
   posY :: Float
 }
 
@@ -24,7 +24,7 @@ tamanhoBotao :: Float
 tamanhoBotao = 20;
 
 tamanhoNota :: Float
-tamanhoNota = 10;
+tamanhoNota = 18;
 
 tamanhoY :: Float
 tamanhoY = 600;
@@ -59,7 +59,7 @@ posBotaoX x = (-(tamanhoX)/2)  + (150 + tamanhoBotao + (((tamanhoBotao*2)+ 16) *
 
 -- Musica
 inicial :: GuitarState
-inicial = loadSong wishyou
+inicial = loadSong naruto
 
 loadSong :: Musica -> GuitarState
 loadSong (Mus vel notas) = State
@@ -72,7 +72,7 @@ loadSong (Mus vel notas) = State
 -- Converte qualquer musica para os objetos dos botoes
 convertNotaToButton :: [Nota] -> Float -> [NotaBotao]
 convertNotaToButton [] _ = []
-convertNotaToButton ((tempo,tipo):xs) vel = (Botao ((tempoCair vel)+tempo,tipo) (-401)) : (convertNotaToButton xs vel)
+convertNotaToButton ((Not tempo tipo dur):xs) vel = (Botao (Not ((tempoCair vel)+tempo) tipo dur) (-401)) : (convertNotaToButton xs vel)
 
 
 ----------------------------------------------------
@@ -100,16 +100,36 @@ mkLinha x = translate x 0 $ color white $ rectangleSolid 2 tamanhoY
 mkBotao :: Bool -> Int -> Picture
 mkBotao pres x = pictures
    [
-     translate (posX) (posBotaoY) $ color white $ circleSolid (tamanhoBotao*1.1),
-     translate (posX) (posBotaoY) $ color (convertTipoColor x) $ circleSolid tamanhoBotao,
-     translate (posX) (posBotaoY) $ color (convertBoolToColor pres x) $ circleSolid (tamanhoBotao*0.5),
+     -- Linha do meio
+     translate posX 0 $ color (greyN 0.2) $ rectangleSolid 1 tamanhoY,
+     -- Borda botao
+     translate (posX) (posBotaoY) $ color white $ circleSolid (tamanhoBase*1.1),
+     --Botao
+     translate (posX) (posBotaoY) $ color (convertTipoColor x) $ circleSolid tamanhoBase,
+     --Parte de dentro do botao
+     translate (posX) (posBotaoY) $ color (convertBoolToColor pres x) $ circleSolid (tamanhoBase*0.5),
+     -- Linha dos lados
      mkLinha (posX + tamanhoBotao + 8)
    ]
    where
+     tamanhoBase = (tamanhoBot pres 1.2)
      posX = posBotaoX x
 --Converte uma nota(bolinhas caindo) para uma imagem
+tamanhoBot :: Bool -> Float -> Float
+tamanhoBot b f
+  | b = tamanhoBotao*f
+  | otherwise = tamanhoBotao
+
 convertNota :: NotaBotao -> Picture
-convertNota (Botao (tempo,tipo) posY) = translate (posBotaoX tipo) ((-(tamanhoY/2))+posY) $ color  (light (convertTipoColor tipo)) $ circleSolid tamanhoNota
+convertNota (Botao (Not tempo tipo dur) posY) = pictures
+  [
+    translate px py $ color (light (convertTipoColor tipo)) $ circleSolid tamanhoNota,
+    translate px py $ color black $ circleSolid (tamanhoNota*0.6),
+    translate px py $ color white $ circleSolid (tamanhoNota*0.5)
+  ]
+  where
+    px = (posBotaoX tipo)
+    py = ((-(tamanhoY/2))+posY)
 --Convert todas as bolinhas caindo para uma imagem
 convertNotas :: Picture -> [NotaBotao] -> Picture
 convertNotas p [] = p
@@ -130,7 +150,7 @@ drawScore sc = pictures
 
 convertBoolToColor :: Bool -> Int -> Color
 convertBoolToColor b x
-    | b =  dim $ cor
+    | b =  dim $ dim $ dim $ cor
     | otherwise = dim $ dim $ dim $ dim $ cor
     where
       cor = (convertTipoColor x)
@@ -153,20 +173,26 @@ pressiona (State notas pont pressionado tempo vel) x b
 
 up :: Int -> GuitarState -> GuitarState
 up tipo (State notas pont pres tempo vel)
-  | acertouNota tempo notas tipo = (State notas (pont+10) pres tempo vel)
+  | acertouNota tempo notas tipo = (State (removeAcertou tempo tipo notas) (pont+15) pres tempo vel)
   | otherwise = (State notas (pont-5) pres tempo vel)
 
 acertouNota :: Float -> [NotaBotao] -> Int -> Bool
 acertouNota _ [] _ = False
-acertouNota tempo ((Botao (ntempo,ntipo) posY):xs) tipo
-  | acertou tempo (Botao (ntempo,ntipo) posY) tipo = True
+acertouNota tempo (x:xs) tipo
+  | acertou tempo x tipo = True
   | otherwise = acertouNota tempo (xs) tipo
 
 acertou :: Float -> NotaBotao -> Int -> Bool
-acertou tempo ((Botao (ntempo,ntipo) posY)) tipo = (near tempo ntempo) && (ntipo == tipo)
+acertou tempo ((Botao (Not ntempo ntipo dur) posY)) tipo = (near posY) && (ntipo == tipo)
 
-near :: Float -> Float -> Bool
-near x y = x>(y-0.3) && x<(y+0.3)
+removeAcertou ::  Float -> Int-> [NotaBotao] -> [NotaBotao]
+removeAcertou _ _ [] = []
+removeAcertou tempo tipo (b:bs)
+  | acertou tempo b tipo = (removeAcertou tempo tipo bs)
+  | otherwise = b : (removeAcertou tempo tipo bs)
+
+near :: Float -> Bool
+near x = x>((tamanhoBotao*2)-20) && x<((tamanhoBotao*2)+40)
 
 setelt :: Int -> Int -> [a] -> a -> [a]
 set _ _ [] _ = []
@@ -185,8 +211,18 @@ input (EventKey (Char k) t _ _) s
 input _ s = s
 
 
+
 update :: Float -> GuitarState -> GuitarState
-update f (State notas pont pressionado tempo vel) = (State (desceNotas notas vel tempo) pont pressionado (tempo+fixedTime) vel)
+update f (State notas pont pressionado tempo vel) = checkPerdidas (State notas pont pressionado tempo vel) $ (State (desceNotas notas vel tempo) pont pressionado (tempo+fixedTime) vel)
+
+checkPerdidas :: GuitarState -> GuitarState -> GuitarState
+checkPerdidas (State n1 _ _ _ _) (State n2 pont pres tempo vel ) = (State n2 (pont-(((countPerdidas n2)-(countPerdidas n1))*5)) pres tempo vel)
+
+countPerdidas :: [NotaBotao] -> Int
+countPerdidas [] = 0
+countPerdidas ((Botao nota posY):xs)
+  | posY == -404 = 1 + countPerdidas xs
+  | otherwise = countPerdidas xs
 
 desceNotas :: [NotaBotao] -> Float -> Float -> [NotaBotao]
 desceNotas [] _ _ = []
@@ -196,9 +232,9 @@ desceNotas ((Botao nota posY):xs) vel tempo
   | otherwise = (Botao nota (posY-(fixedTime*vel))):(desceNotas xs vel tempo)
 
 checkDesce :: NotaBotao -> Float -> Float -> NotaBotao
-checkDesce (Botao (tnota,tipo) posY) tempo vel
-  | ((tempo + (tempoCair vel)) >= tnota) = (Botao (tnota,tipo) tamanhoY)
-  | otherwise = (Botao (tnota,tipo) posY)
+checkDesce (Botao (Not tnota tipo dur) posY) tempo vel
+  | ((tempo + (tempoCair vel)) >= tnota) = (Botao (Not tnota tipo dur) tamanhoY)
+  | otherwise = (Botao (Not tnota tipo dur) posY)
 
 main :: IO ()
 main = play window black fps inicial convertState input update
