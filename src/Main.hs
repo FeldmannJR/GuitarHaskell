@@ -10,14 +10,21 @@ import Musicas.Musica
 
 data GuitarState = State{
   notas :: [NotaBotao],
-  pont :: Int,
+  score :: GameScore,
   pressionado :: [Bool],
   tempo :: Float,
-  vel :: Float
+  mus :: Musica
 } | PreGame {
   musica :: Musica
 } | PosGame {
-  score :: Int
+  score :: GameScore
+}
+data GameScore = Score{
+  pont :: Int,
+  streak :: Int,
+  erros :: Int,
+  perdidas :: Int,
+  acertos :: Int
 }
 data NotaBotao = Botao{
   nota :: Nota,
@@ -70,12 +77,12 @@ inicial = PreGame
   }
 
 loadSong :: Musica -> GuitarState
-loadSong (Mus _ vel notas) = State
+loadSong (Mus nome vel notas) = State
   { notas = (convertNotaToButton notas vel)
-  , pont = 0
+  , score = (Score 0 0 0 0 0)
   , pressionado = [False,False,False,False,False]
   , tempo = 0
-  , vel = vel
+  , mus = (Mus nome vel notas)
 }
 -- Converte qualquer musica para os objetos dos botoes
 convertNotaToButton :: [Nota] -> Float -> [NotaBotao]
@@ -87,16 +94,16 @@ convertNotaToButton ((Not tempo tipo dur):xs) vel = (Botao (Not ((tempoCair vel)
 --Funções para renderizar algo na tela
 --Converte todo o jogo para uma imagem
 convertState :: GuitarState -> Picture
-convertState (State (notas) (pont) (pressionado) (tempo) vel) = pictures [botoes pressionado,(convertNotas ((pictures [])) notas), drawTempo tempo vel, drawScore pont]
+convertState (State (notas) (pont) (pressionado) (tempo) (Mus _ vel _)) = pictures [botoes pressionado,(convertNotas ((pictures [])) notas), drawTempo tempo vel, drawScore pont]
 convertState (PreGame (Mus nome vel _)) = pictures
   [
   translate (fx 40) (fy 500) $ color red $ scale 0.2 0.2 $ text (nome),
   translate (fx 40) (fy 450) $ color white $ scale 0.2 0.2 $ text "Use as setinhas para escolher a musica",
   translate (fx 40) (fy 100) $ color white $ scale 0.25 0.25 $ text "Aperte espaco para comecar"
   ]
-convertState (PosGame score) = pictures
+convertState (PosGame (Score pont _ _ _ _)) = pictures
   [
-  translate (fx 40) (fy 500) $ color red $ scale 0.5 0.5 $ text ("Score " ++ (show score))
+  translate (fx 40) (fy 500) $ color red $ scale 0.5 0.5 $ text ("Score " ++ (show pont))
   ]
 
 
@@ -160,12 +167,15 @@ convertNotas p ((Botao x y):xs)
 drawTempo :: Float -> Float-> Picture
 drawTempo tempo vel = color red $ translate (posBotaoX 5) (fy tamanhoY-30) $ scale 0.2 0.2 $ text $ (show tempo)
 
-drawScore :: Int -> Picture
-drawScore sc = pictures
+drawScore :: GameScore -> Picture
+drawScore (Score sc streak _ _ _) = pictures
   [
     color blue $ translate ((posBotaoX 5)+10) (fy 50) $ scale 0.3 0.3 $ text "Score",
-    color white $ translate ((posBotaoX 5)+9) (fy 20) $ scale 0.2 0.2 $ text $ show sc
+    color white $ translate ((posBotaoX 5)+9) (fy 20) $ scale 0.2 0.2 $ text $ show sc,
+    color red $ translate ((posBotaoX 5)+10) (fy 150) $ scale 0.3 0.3 $ text "Streak",
+    color white $ translate ((posBotaoX 5)+9) (fy 120) $ scale 0.2 0.2 $ text $ show streak
   ]
+
 
 convertBoolToColor :: Bool -> Int -> Color
 convertBoolToColor b x
@@ -191,9 +201,9 @@ pressiona (State notas pont pressionado tempo vel) x b
        newstate = (State notas pont (setelt x 0 pressionado b) tempo vel)
 
 up :: Int -> GuitarState -> GuitarState
-up tipo (State notas pont pres tempo vel)
-  | acertouNota tempo notas tipo = (State (removeAcertou tempo tipo notas) (pont+15) pres tempo vel)
-  | otherwise = (State notas (pont-5) pres tempo vel)
+up tipo (State notas (Score pont streak acertos erros perdidas) pres tempo vel)
+  | acertouNota tempo notas tipo = (State (removeAcertou tempo tipo notas) (Score (pont+15) (streak+1) erros (acertos+1) perdidas) pres tempo vel)
+  | otherwise = (State notas (Score (pont-5) (streak) (erros+1) (acertos) perdidas) pres tempo vel)
 
 acertouNota :: Float -> [NotaBotao] -> Int -> Bool
 acertouNota _ [] _ = False
@@ -244,12 +254,19 @@ checkFim (State notas score press tempo vel)
 
 
 update :: Float -> GuitarState -> GuitarState
-update f (State notas pont pressionado tempo vel) = checkFim $ checkPerdidas (State notas pont pressionado tempo vel) $ (State (desceNotas notas vel tempo) pont pressionado (tempo+fixedTime) vel)
+update f (State notas pont pressionado tempo (Mus nome vel m_notas)) = checkFim $ checkPerdidas (State notas pont pressionado tempo (Mus nome vel m_notas)) $ (State (desceNotas notas vel tempo) pont pressionado (tempo+fixedTime) (Mus nome vel m_notas))
 update f s = s
 
 
 checkPerdidas :: GuitarState -> GuitarState -> GuitarState
-checkPerdidas (State n1 _ _ _ _) (State n2 pont pres tempo vel ) = (State n2 (pont-(((countPerdidas n2)-(countPerdidas n1))*5)) pres tempo vel)
+checkPerdidas (State n1 _ _ _ _) (State n2 (Score pont streak erros acertos perdidas) pres tempo mus) = (State n2 (Score (pont-(perdidas*5)) (getStreak perdidas streak) (erros) acertos (perdidas+1)) pres tempo mus)
+  where
+    perdidas =((countPerdidas n2)-(countPerdidas n1));
+
+getStreak :: Int -> Int -> Int
+getStreak perdidas streak
+  | perdidas > 0 = 0
+  | otherwise = streak
 
 countPerdidas :: [NotaBotao] -> Int
 countPerdidas [] = 0
@@ -261,7 +278,7 @@ desceNotas :: [NotaBotao] -> Float -> Float -> [NotaBotao]
 desceNotas [] _ _ = []
 desceNotas ((Botao nota posY):xs) vel tempo
   | posY == -401 = (checkDesce (Botao nota posY) tempo vel) : (desceNotas xs vel tempo)
-  | posY < 0 = (Botao nota (-404)):(desceNotas xs vel tempo)
+  | posY < -10 = (Botao nota (-404)):(desceNotas xs vel tempo)
   | otherwise = (Botao nota (posY-(fixedTime*vel))):(desceNotas xs vel tempo)
 
 checkDesce :: NotaBotao -> Float -> Float -> NotaBotao

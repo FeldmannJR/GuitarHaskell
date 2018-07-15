@@ -3,10 +3,11 @@ module Musicas.Musicas where
 import Musicas.Musica
 import Musicas.HeavyWeight
 import Musicas.RisingFighting
+import Musicas.TomSawyer
 
 
 musicas :: [Musica]
-musicas =[heavyWeight,risingFighting]
+musicas =[heavyWeight,risingFighting,tomSawyer]
 
 nextMusica :: Musica -> Musica
 nextMusica s = nextMus s musicas
