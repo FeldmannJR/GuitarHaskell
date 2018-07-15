@@ -5,7 +5,8 @@ import Graphics.Gloss
 import Graphics.Gloss.Interface.Pure.Game
 import Graphics.Gloss.Interface.Pure.Display
 
-import Musica
+import Musicas.Musicas
+import Musicas.Musica
 
 data GuitarState = State{
   notas :: [NotaBotao],
@@ -13,6 +14,10 @@ data GuitarState = State{
   pressionado :: [Bool],
   tempo :: Float,
   vel :: Float
+} | PreGame {
+  musica :: Musica
+} | PosGame {
+  score :: Int
 }
 data NotaBotao = Botao{
   nota :: Nota,
@@ -59,10 +64,13 @@ posBotaoX x = (-(tamanhoX)/2)  + (150 + tamanhoBotao + (((tamanhoBotao*2)+ 16) *
 
 -- Musica
 inicial :: GuitarState
-inicial = loadSong naruto
+inicial = PreGame
+  {
+    musica = musicas!!0
+  }
 
 loadSong :: Musica -> GuitarState
-loadSong (Mus vel notas) = State
+loadSong (Mus _ vel notas) = State
   { notas = (convertNotaToButton notas vel)
   , pont = 0
   , pressionado = [False,False,False,False,False]
@@ -80,6 +88,17 @@ convertNotaToButton ((Not tempo tipo dur):xs) vel = (Botao (Not ((tempoCair vel)
 --Converte todo o jogo para uma imagem
 convertState :: GuitarState -> Picture
 convertState (State (notas) (pont) (pressionado) (tempo) vel) = pictures [botoes pressionado,(convertNotas ((pictures [])) notas), drawTempo tempo vel, drawScore pont]
+convertState (PreGame (Mus nome vel _)) = pictures
+  [
+  translate (fx 40) (fy 500) $ color red $ scale 0.2 0.2 $ text (nome),
+  translate (fx 40) (fy 450) $ color white $ scale 0.2 0.2 $ text "Use as setinhas para escolher a musica",
+  translate (fx 40) (fy 100) $ color white $ scale 0.25 0.25 $ text "Aperte espaco para comecar"
+  ]
+convertState (PosGame score) = pictures
+  [
+  translate (fx 40) (fy 500) $ color red $ scale 0.5 0.5 $ text ("Score " ++ (show score))
+  ]
+
 
 -- Converte os botões de baixo ( que são ativavies para imagem)
 botoes :: [Bool] -> Picture
@@ -201,19 +220,33 @@ setelt x y (k:ks) v
   | otherwise = k:(setelt x (y+1) ks v)
 
 input :: Event -> GuitarState -> GuitarState
-input (EventKey (Char k) t _ _) s
-  | k == 'a' = pressiona s 0 (t==Down)
-  | k == 's' = pressiona s 1 (t==Down)
-  | k == 'd' = pressiona s 2 (t==Down)
-  | k == 'k' = pressiona s 3 (t==Down)
-  | k == 'l' = pressiona s 4 (t==Down)
-  | otherwise = s
+input (EventKey (Char k) t _ _) (State a b c d e)
+  | k == 'a' = pressiona (State a b c d e) 0 (t==Down)
+  | k == 's' = pressiona (State a b c d e) 1 (t==Down)
+  | k == 'd' = pressiona (State a b c d e) 2 (t==Down)
+  | k == 'k' = pressiona (State a b c d e) 3 (t==Down)
+  | k == 'l' = pressiona (State a b c d e) 4 (t==Down)
+  | otherwise = (State a b c d e)
+input (EventKey (SpecialKey KeySpace) t _ _) (PreGame mus) = loadSong mus
+input (EventKey (SpecialKey KeyRight) Down _ _) (PreGame mus) = (PreGame (nextMusica mus))
+input (EventKey (SpecialKey KeyLeft) Down _ _) (PreGame mus) = (PreGame (prevMusica mus))
+input (EventKey (SpecialKey KeySpace) t _ _) (PosGame score) = inicial
 input _ s = s
 
+ultimaNota :: [NotaBotao] -> Float
+ultimaNota [] = 0.0
+ultimaNota ((Botao (Not n_tempo n_tipo n_dur) n_y):xs) = max (n_tempo) (ultimaNota xs)
+
+checkFim :: GuitarState -> GuitarState
+checkFim (State notas score press tempo vel)
+  | ((ultimaNota notas)+3) < tempo = (PosGame score)
+  | otherwise = (State notas score press tempo vel)
 
 
 update :: Float -> GuitarState -> GuitarState
-update f (State notas pont pressionado tempo vel) = checkPerdidas (State notas pont pressionado tempo vel) $ (State (desceNotas notas vel tempo) pont pressionado (tempo+fixedTime) vel)
+update f (State notas pont pressionado tempo vel) = checkFim $ checkPerdidas (State notas pont pressionado tempo vel) $ (State (desceNotas notas vel tempo) pont pressionado (tempo+fixedTime) vel)
+update f s = s
+
 
 checkPerdidas :: GuitarState -> GuitarState -> GuitarState
 checkPerdidas (State n1 _ _ _ _) (State n2 pont pres tempo vel ) = (State n2 (pont-(((countPerdidas n2)-(countPerdidas n1))*5)) pres tempo vel)
