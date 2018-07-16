@@ -5,9 +5,13 @@ Guitar Hero feito em haskell usando gloss para os gráficos e proteaaudio para o
 
 Feito com @jvbelmonte
 
-Para rodar:
+### Video do jogo
+[![Exemplo do jogo](https://img.youtube.com/vi/FuEwflpj_wM/0.jpg)](https://youtu.be/FuEwflpj_wM)
+
+###  Como compilar
 ```
 cabal sandbox init
 cabal install
 cabal run
 ```
+
