@@ -1,9 +1,17 @@
 module Main where
 
+import Control.Monad
+import System.Environment
+import System.FilePath
+import qualified Data.ByteString as SB
+import Control.Concurrent
 
-import Graphics.Gloss
+import Graphics.Gloss as G
+import Graphics.Gloss.Interface.IO.Game
 import Graphics.Gloss.Interface.Pure.Game
 import Graphics.Gloss.Interface.Pure.Display
+
+import Sound.ProteaAudio
 
 import Musicas.Musicas
 import Musicas.Musica
@@ -13,7 +21,8 @@ data GuitarState = State{
   score :: GameScore,
   pressionado :: [Bool],
   tempo :: Float,
-  mus :: Musica
+  mus :: Musica,
+  tocouSong :: Bool
 } | PreGame {
   musica :: Musica
 } | PosGame {
@@ -63,6 +72,7 @@ fx x = (-tamanhoX/2)+x
 fy :: Float -> Float
 fy y = (-tamanhoY/2)+y
 
+
 posBotaoY :: Float
 posBotaoY = (-(tamanhoY/2)) + tamanhoBotao*2
 
@@ -78,42 +88,44 @@ inicial = PreGame
   }
 
 loadSong :: Musica -> GuitarState
-loadSong (Mus nome vel notas) = State
+loadSong (Mus nome fnome delay vel notas) = State
   { notas = (convertNotaToButton notas vel)
   , score = (Score 0 0 0 0 0)
   , pressionado = [False,False,False,False,False]
   , tempo = 0
-  , mus = (Mus nome vel notas)
+  , mus = (Mus nome fnome delay vel notas)
+  , tocouSong = False
 }
 -- Converte qualquer musica para os objetos dos botoes
 convertNotaToButton :: [Nota] -> Float -> [NotaBotao]
 convertNotaToButton [] _ = []
-convertNotaToButton ((Not tempo tipo dur):xs) vel = (Botao (Not ((tempoCair vel)+tempo) tipo dur) (-401)) : (convertNotaToButton xs vel)
+convertNotaToButton ((Not tempo tipo dur):xs) vel = (Botao (Not (tempo) tipo dur) (-401)) : (convertNotaToButton xs vel)
 
 
 ----------------------------------------------------
 --Funções para renderizar algo na tela
 --Converte todo o jogo para uma imagem
-convertState :: GuitarState -> Picture
-convertState (State (notas) (pont) (pressionado) (tempo) (Mus _ vel _)) = pictures [botoes pressionado,(convertNotas ((pictures [])) notas), drawTempo tempo notas, drawScore pont]
-convertState (PreGame (Mus nome vel _)) = pictures
-  [
-   translate (fx 40) (fy 500) $ color red $ scale 0.2 0.2 $ text (nome),
-   translate (fx 40) (fy 450) $ color white $ scale 0.2 0.2 $ text "Use as setinhas para escolher a musica",
-   translate (fx 50) (fy 100) $ color white $ scale 0.25 0.25 $ text "Aperte espaco para comecar",
-   mkPreBotao "Tecla A" 0,
-   mkPreBotao "Tecla S" 1,
-   mkPreBotao "Tecla D" 2,
-   mkPreBotao "Tecla K" 3,
-   mkPreBotao "Tecla L" 4
+convertState :: GuitarState -> IO Picture
+convertState (State (notas) (pont) (pressionado) (tempo) (Mus _ _ _ vel _) _) = do return $ pictures [botoes pressionado,(convertNotas ((pictures [])) notas), drawTempo tempo notas, drawScore pont]
 
-  ]
-convertState (PosGame (Score pont _ _ _ _) (Mus nome _ _)) = pictures
-  [
-    translate (fx 50) (fy 550) $ color green $ scale 0.2 0.2 $ text nome,
-    translate (fx 100) (fy 200) $ color red $ scale 0.3 0.3 $ text ("Score " ++ (show pont))
-
-  ]
+convertState (PreGame (Mus nome fnome _ vel _)) = do
+  return $ pictures
+       [
+       translate (fx 40) (fy 500) $ color red $ scale 0.2 0.2 $ text (nome),
+       translate (fx 40) (fy 450) $ color white $ scale 0.2 0.2 $ text "Use as setinhas para escolher a musica",
+       translate (fx 50) (fy 100) $ color white $ scale 0.25 0.25 $ text "Aperte espaco para comecar",
+       mkPreBotao "Tecla A" 0,
+       mkPreBotao "Tecla S" 1,
+       mkPreBotao "Tecla D" 2,
+       mkPreBotao "Tecla K" 3,
+       mkPreBotao "Tecla L" 4
+      ]
+convertState (PosGame (Score pont _ _ _ _) (Mus nome _ _ _ _)) = do
+    return $ pictures
+        [
+        translate (fx 50) (fy 550) $ color green $ scale 0.2 0.2 $ text nome,
+        translate (fx 100) (fy 200) $ color red $ scale 0.3 0.3 $ text ("Score " ++ (show pont))
+        ]
 
 
 mkPreBotao :: String -> Int-> Picture
@@ -218,16 +230,16 @@ convertTipoColor x
 --------------------------------------------------------------
 ---- Entradas e updates do jogo
 pressiona :: GuitarState -> Int -> Bool -> GuitarState
-pressiona (State notas pont pressionado tempo vel) x b
+pressiona (State notas pont pressionado tempo vel song) x b
   | b = up x $ newstate
   | otherwise = newstate
     where
-       newstate = (State notas pont (setelt x 0 pressionado b) tempo vel)
+       newstate = (State notas pont (setelt x 0 pressionado b) tempo vel song)
 
 up :: Int -> GuitarState -> GuitarState
-up tipo (State notas (Score pont streak acertos erros perdidas) pres tempo vel)
-  | acertouNota tempo notas tipo = (State (removeAcertou tempo tipo notas) (Score (pont+10) (streak+1) erros (acertos+1) perdidas) pres tempo vel)
-  | otherwise = (State notas (Score (pont-10) (streak) (erros+1) (acertos) perdidas) pres tempo vel)
+up tipo (State notas (Score pont streak acertos erros perdidas) pres tempo vel song)
+  | acertouNota tempo notas tipo = (State (removeAcertou tempo tipo notas) (Score (pont+10) (streak+1) erros (acertos+1) perdidas) pres tempo vel song)
+  | otherwise = (State notas (Score (pont-10) (streak) (erros+1) (acertos) perdidas) pres tempo vel song)
 
 acertouNota :: Float -> [NotaBotao] -> Int -> Bool
 acertouNota _ [] _ = False
@@ -253,37 +265,52 @@ setelt x y (k:ks) v
   | x == y = v:ks
   | otherwise = k:(setelt x (y+1) ks v)
 
-input :: Event -> GuitarState -> GuitarState
-input (EventKey (Char k) t _ _) (State a b c d e)
-  | k == 'a' = pressiona (State a b c d e) 0 (t==Down)
-  | k == 's' = pressiona (State a b c d e) 1 (t==Down)
-  | k == 'd' = pressiona (State a b c d e) 2 (t==Down)
-  | k == 'k' = pressiona (State a b c d e) 3 (t==Down)
-  | k == 'l' = pressiona (State a b c d e) 4 (t==Down)
-  | otherwise = (State a b c d e)
-input (EventKey (SpecialKey KeySpace) t _ _) (PreGame mus) = loadSong mus
-input (EventKey (SpecialKey KeyRight) Down _ _) (PreGame mus) = (PreGame (nextMusica mus))
-input (EventKey (SpecialKey KeyLeft) Down _ _) (PreGame mus) = (PreGame (prevMusica mus))
-input (EventKey (SpecialKey KeySpace) Up _ _) (PosGame score mus) = (PreGame mus)
-input _ s = s
+input :: Event -> GuitarState -> IO GuitarState
+input (EventKey (Char k) t _ _) (State a b c d e f) = do
+        if (getNumber k >= 0) then return (pressiona (State a b c d e f) (getNumber k) (t==Down))
+        else do return (State a b c d e f);
+input (EventKey (SpecialKey KeySpace) t _ _) (PreGame mus) = do
+    return $ loadSong mus
+input (EventKey (SpecialKey KeyRight) Down _ _) (PreGame mus) = do return (PreGame (nextMusica mus))
+input (EventKey (SpecialKey KeyLeft) Down _ _) (PreGame mus) = do return (PreGame (prevMusica mus))
+input (EventKey (SpecialKey KeySpace) Up _ _) (PosGame score mus) = do return (PreGame mus)
+input _ s = do return s
+
+getNumber :: Char -> Int
+getNumber k
+    | k == 'a' = 0
+    | k == 's' = 1
+    | k == 'd' = 2
+    | k == 'k' = 3
+    | k == 'l' = 4
+    | otherwise = -1
 
 ultimaNota :: [NotaBotao] -> Float
 ultimaNota [] = 0.0
 ultimaNota ((Botao (Not n_tempo n_tipo n_dur) n_y):xs) = max (n_tempo) (ultimaNota xs)
 
 checkFim :: GuitarState -> GuitarState
-checkFim (State notas score press tempo mus)
+checkFim (State notas score press tempo mus song)
   | ((ultimaNota notas)+3) < tempo = (PosGame score mus)
-  | otherwise = (State notas score press tempo mus )
+  | otherwise = (State notas score press tempo mus song)
 
 
-update :: Float -> GuitarState -> GuitarState
-update f (State notas pont pressionado tempo (Mus nome vel m_notas)) = checkFim $ checkPerdidas (State notas pont pressionado tempo (Mus nome vel m_notas)) $ (State (desceNotas notas vel tempo) pont pressionado (tempo+fixedTime) (Mus nome vel m_notas))
-update f s = s
+update :: Float -> GuitarState -> IO GuitarState
+update f (State notas pont pressionado tempo (Mus nome fnome delay vel m_notas) song) = testaSom ( checkFim $ checkPerdidas (State notas pont pressionado tempo (Mus nome fnome delay vel m_notas) song) $ (State (desceNotas notas vel tempo) pont pressionado (tempo+fixedTime) (Mus nome fnome delay vel m_notas) song))
+update f s = do return s
 
+
+testaSom :: GuitarState -> IO GuitarState
+testaSom (State notas pont pressionado tempo (Mus name fname delay vel fn) song) = do
+    if ((song==False && tempo >= delay)==False) then
+        return  (State notas pont pressionado tempo (Mus name fname delay vel fn) song)
+     else do
+        playMusica fname;
+        return (State notas pont pressionado tempo (Mus name fname delay vel fn) True)
+testaSom s = do (return s)
 
 checkPerdidas :: GuitarState -> GuitarState -> GuitarState
-checkPerdidas (State n1 _ _ _ _) (State n2 (Score pont streak erros acertos perdidas) pres tempo mus) = (State n2 (Score (pont-(perdidas*10)) (getStreak perdidas streak) (erros) acertos (perdidas+1)) pres tempo mus)
+checkPerdidas (State n1 _ _ _ _ _) (State n2 (Score pont streak erros acertos perdidas) pres tempo mus song) = (State n2 (Score (pont-(perdidas*10)) (getStreak perdidas streak) (erros) acertos (perdidas+1)) pres tempo mus song)
   where
     perdidas =((countPerdidas n2)-(countPerdidas n1));
 
@@ -310,5 +337,16 @@ checkDesce (Botao (Not tnota tipo dur) posY) tempo vel
   | ((tempo + (tempoCair vel)) >= tnota) = (Botao (Not tnota tipo dur) tamanhoY)
   | otherwise = (Botao (Not tnota tipo dur) posY)
 
+
+
+playMusica :: String -> IO ()
+playMusica a = do
+    teste <- sampleFromFile ("./audio/"++a) 1.0
+    soundPlay teste 1 1 0 1
+
+
 main :: IO ()
-main = play window black fps inicial convertState input update
+main = do
+    result <- initAudio 64 44100 1024;
+    playIO window black fps inicial convertState input update
+
