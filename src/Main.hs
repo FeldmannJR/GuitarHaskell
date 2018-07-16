@@ -5,11 +5,14 @@ import System.Environment
 import System.FilePath
 import qualified Data.ByteString as SB
 import Control.Concurrent
+import Data.Maybe
 
 import Graphics.Gloss as G
 import Graphics.Gloss.Interface.IO.Game
 import Graphics.Gloss.Interface.Pure.Game
 import Graphics.Gloss.Interface.Pure.Display
+
+import Graphics.Gloss.Juicy
 
 import Sound.ProteaAudio
 
@@ -165,6 +168,8 @@ convertNotaToButton ((Not tempo tipo dur):xs) vel
     | otherwise =  (Botao (Not (tempo) tipo dur) (praCair)) : (convertNotaToButton xs vel)
 
 
+removeMaybe:: IO (Maybe a) -> IO a
+removeMaybe = (>>= maybe (ioError $ userError "oops") return)
 
 ----------------------------------------------------
 --Funções para renderizar algo na tela
@@ -173,8 +178,10 @@ convertState :: GuitarState -> IO Picture
 convertState (State (notas) (pont) (pressionado) (tempo) (Mus _ _ _ vel _) _) = do return $ pictures [botoes pressionado,(convertNotas ((pictures [])) vel notas), drawTempo tempo notas, drawScore pont]
 
 convertState (PreGame (Mus nome fnome _ vel _)) = do
+  teste <- removeMaybe $ loadJuicy "./img/skin.bmp" ;
   return $ pictures
        [
+       teste,
        translate (fx 40) (fy 500) $ color red $ scale 0.2 0.2 $ text (nome),
        translate (fx 40) (fy 450) $ color white $ scale 0.2 0.2 $ text "Use as setinhas para escolher a musica",
        translate (fx 50) (fy 100) $ color white $ scale 0.25 0.25 $ text "Aperte espaco para comecar",
