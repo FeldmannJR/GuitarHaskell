@@ -14,4 +14,7 @@ cabal sandbox init
 cabal install
 cabal run
 ```
-
+### Pacotes necessários
+```
+c2hs libpulse-dev pulseaudio
+```

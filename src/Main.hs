@@ -3,6 +3,7 @@ module Main where
 import Control.Monad
 import System.Environment
 import System.FilePath
+import System.Exit
 import qualified Data.ByteString as SB
 import Control.Concurrent
 import Data.Maybe
@@ -31,6 +32,10 @@ data GuitarState = State{
 } | PosGame {
   score :: GameScore,
   musica :: Musica
+} | Pause {
+  state :: GuitarState,
+  menu :: Int,
+  volta :: Float
 }
 data GameScore = Score{
   pont :: Int,
@@ -171,17 +176,59 @@ convertNotaToButton ((Not tempo tipo dur):xs) vel
 removeMaybe:: IO (Maybe a) -> IO a
 removeMaybe = (>>= maybe (ioError $ userError "oops") return)
 
+
+
+-- Menu Pause
+pause :: GuitarState -> GuitarState
+pause a = (Pause a 0 (-1))
+
+opMenu = 2
+
+avancaMenu :: Int -> Int
+avancaMenu m
+  | m >= opMenu  = 0
+  | otherwise = m+1
+
+voltaMenu :: Int -> Int
+voltaMenu m
+    | m ==0  = opMenu-1
+    | otherwise = m-1
+
+getCorMenu :: Bool -> Color
+getCorMenu b
+  | b = yellow
+  | otherwise = white
+
+getOpMenu :: String -> Int -> Int -> Picture
+getOpMenu nome num sel = translate (fx 40) (fy (tamanhoY-100-((fromIntegral num)*60))) $ color (getCorMenu (num==sel)) $ scale 0.2 0.2 $ text nome
+-- Termina pause
+
 ----------------------------------------------------
 --Funções para renderizar algo na tela
 --Converte todo o jogo para uma imagem
 convertState :: GuitarState -> IO Picture
 convertState (State (notas) (pont) (pressionado) (tempo) (Mus _ _ _ vel _) _) = do return $ pictures [botoes pressionado,(convertNotas ((pictures [])) vel notas), drawTempo tempo notas, drawScore pont]
 
-convertState (PreGame (Mus nome fnome _ vel _)) = do
-  teste <- removeMaybe $ loadJuicy "./img/skin.bmp" ;
+convertState (Pause state menu (-1)) = do
   return $ pictures
+    [
+      getOpMenu "Voltar para o jogo" 0 menu,
+      getOpMenu "Sair para o menu" 1 menu
+    ]
+convertState (Pause state menu volta) = do
+  old <- convertState state;
+  return $ pictures
+    [
+      old,
+      translate (fx (tamanhoX/2)) (fy (tamanhoY/2)) $ color white $ scale 0.4 0.4 $ rectangleSolid 300 200,
+      translate (fx (tamanhoX/2)-40) (fy (tamanhoY/2)-20) $ color black $ scale 0.4 0.4 $ text ((show (roundN volta 1)))
+    ]
+
+convertState (PreGame (Mus nome fnome _ vel _)) = do
+  return $ pictures
+  --teste <- removeMaybe $ loadJuicy "./img/skin.bmp" ;
        [
-       teste,
+    --   teste,
        translate (fx 40) (fy 500) $ color red $ scale 0.2 0.2 $ text (nome),
        translate (fx 40) (fy 450) $ color white $ scale 0.2 0.2 $ text "Use as setinhas para escolher a musica",
        translate (fx 50) (fy 100) $ color white $ scale 0.25 0.25 $ text "Aperte espaco para comecar",
@@ -195,12 +242,13 @@ convertState (PosGame (Score pont _ _ _ _) (Mus nome _ _ _ _)) = do
     return $ pictures
         [
         translate (fx 50) (fy 550) $ color green $ scale 0.2 0.2 $ text nome,
-        translate (fx 100) (fy 200) $ color red $ scale 0.3 0.3 $ text ("Score " ++ (show pont))
+        translate (fx 100) (fy 200) $ color red $ scale 0.3 0.3 $ text ("Score " ++ (show $ pont-1))
         ]
 
 
 mkPreBotao :: String -> Int-> Picture
 mkPreBotao txt tipo= pictures
+
   [
        translate (x) (y) $ color white $ circleSolid (tamanhoBotao*1.1),
        translate (x) (y) $ color (convertTipoColor tipo) $ circleSolid tamanhoBotao,
@@ -314,14 +362,41 @@ removeAcertou tempo tipo (b:bs)
 
 
 input :: Event -> GuitarState -> IO GuitarState
+-- INGAME
+input (EventKey (SpecialKey KeyEnter) a b c) state = input (EventKey (SpecialKey KeySpace) a b c) state
+
+-- Botao pause
+input (EventKey (SpecialKey KeyEsc) Down _ _) (State a b c d e f) = do return (pause (State a b c d e f))
+  -- Entrada botoes
 input (EventKey (Char k) t _ _) (State a b c d e f) = do
         if (getNumber k >= 0) then return (pressiona (State a b c d e f) (getNumber k) (t==Down))
         else do return (State a b c d e f);
-input (EventKey (SpecialKey KeySpace) t _ _) (PreGame mus) = do
+-- PAUSE
+    -- Sel op
+input (EventKey (SpecialKey KeySpace) Down _ _) (Pause state menu volta) = do
+  case menu of
+    0 -> do return $ (Pause state menu 3)
+    1 -> do return $ inicial
+      -- Seta direito prox musica
+
+input (EventKey (SpecialKey KeyDown) Down _ _) (Pause state menu volta) = do return (Pause state (avancaMenu menu) volta)
+    -- Seta esquerda musica anterior
+input (EventKey (SpecialKey KeyUp) Down _ _) (Pause state menu volta) = do return (Pause state (voltaMenu menu) volta)
+-- PRE GAME
+  -- Esc sai
+input (EventKey (SpecialKey KeyEsc) Down _ _) (PreGame mus) = do exitSuccess
+  -- Space começar jogo
+input (EventKey (SpecialKey KeySpace) Down _ _) (PreGame mus) = do
     return $ loadSong mus
+  -- Seta direito prox musica
 input (EventKey (SpecialKey KeyRight) Down _ _) (PreGame mus) = do return (PreGame (nextMusica mus))
+  -- Seta esquerda musica anterior
 input (EventKey (SpecialKey KeyLeft) Down _ _) (PreGame mus) = do return (PreGame (prevMusica mus))
+--POS GAME
+  -- Voltar para o menu
 input (EventKey (SpecialKey KeySpace) Up _ _) (PosGame score mus) = do return (PreGame mus)
+
+input (EventKey (SpecialKey KeyEsc) Down _ _) (PosGame score mus) = do exitSuccess
 input _ s = do return s
 
 
@@ -337,6 +412,12 @@ checkFim (State notas score press tempo mus song)
 
 update :: Float -> GuitarState -> IO GuitarState
 update f (State notas pont pressionado tempo (Mus nome fnome delay vel m_notas) song) = testaSom ( checkFim $ checkPerdidas (State notas pont pressionado tempo (Mus nome fnome delay vel m_notas) song) $ (State (desceNotas notas vel tempo) pont pressionado (tempo+fixedTime) (Mus nome fnome delay vel m_notas) song))
+update f (Pause state menu volta) = do{
+    if(volta==(-1)) then return (Pause state menu volta) else
+    if ((volta-fixedTime)<=0) then
+      return state
+    else do return (Pause state menu (volta-fixedTime))
+  }
 update f s = do return s
 
 
@@ -396,4 +477,3 @@ main :: IO ()
 main = do
     result <- initAudio 64 44100 1024;
     playIO window black fps inicial convertState input update
-
