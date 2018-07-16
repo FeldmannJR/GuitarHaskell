@@ -49,7 +49,7 @@ tamanhoNota :: Float
 tamanhoNota = 18;
 
 tamanhoY :: Float
-tamanhoY = 600;
+tamanhoY = 900;
 
 tamanhoX :: Float
 tamanhoX = 600;
@@ -57,27 +57,88 @@ tamanhoX = 600;
 fps :: Int
 fps = 120
 
+--Gambiarra
+praCair :: Float
+praCair = -1000000
+--Gambiarra
+errou :: Float
+errou = -10000100
+
 window :: Display
 window = InWindow "Guitar Haskell" (round (tamanhoX),round (tamanhoY)) (10,10)
 
 fixedTime :: Float
 fixedTime = 1.0 / (fromIntegral fps);
 
-tempoCair :: Float -> Float
-tempoCair x = ((tamanhoY-tamanhoBotao*2)/x)
 
+-- Tempo para a nota cair do topo até o botao
+tempoCair :: Float -> Float
+tempoCair vel = ((tamanhoY-tamanhoBotao*2)/vel)
+
+-- Converte tempo em pixeis que a nota anda
+tempoToPx :: Float -> Float -> Float
+tempoToPx vel tempo = tempo * vel
+
+--Converte pixeis da tela para o tempo que a nota passa neles
+pxToTempo :: Float -> Float -> Float
+pxToTempo vel tempo = tempo / vel
+
+--converte para origin 0 ao em vez de -300
 fx :: Float -> Float
 fx x = (-tamanhoX/2)+x
 
+--Converte para origem 0 ao em vez de -300
 fy :: Float -> Float
 fy y = (-tamanhoY/2)+y
 
+--checa se o a nota está perto do botao
+near :: Float -> Bool
+near x = x>((tamanhoBotao*2)-40) && x<((tamanhoBotao*2)+40)
+
+--Seta elemento X da lista para outro e retorna a lista modificada
+setelt :: Int -> Int -> [a] -> a -> [a]
+set _ _ [] _ = []
+setelt x y (k:ks) v
+  | x == y = v:ks
+  | otherwise = k:(setelt x (y+1) ks v)
 
 posBotaoY :: Float
 posBotaoY = (-(tamanhoY/2)) + tamanhoBotao*2
 
 posBotaoX :: Int -> Float
 posBotaoX x = (-(tamanhoX)/2)  + (150 + tamanhoBotao + (((tamanhoBotao*2)+ 16) * fromIntegral x))
+
+roundN :: Float -> Int -> Float
+roundN f n=  (fromInteger $ round $ f * (10^n)) / (10.0^^n)
+
+convertBoolToColor :: Bool -> Int -> Color
+convertBoolToColor b x
+    | b =  dim $ dim $ dim $ cor
+    | otherwise = dim $ dim $ dim $ dim $ cor
+    where
+      cor = (convertTipoColor x)
+
+convertTipoColor :: Int -> Color
+convertTipoColor x
+  | x == 0 = green
+  | x == 1 = red
+  | x == 2 = yellow
+  | x == 3 = blue
+  | otherwise = orange
+
+tamanhoBot :: Bool -> Float -> Float
+tamanhoBot b f
+  | b = tamanhoBotao*f
+  | otherwise = tamanhoBotao
+
+getNumber :: Char -> Int
+getNumber k
+    | k == 'a' = 0
+    | k == 's' = 1
+    | k == 'd' = 2
+    | k == 'k' = 3
+    | k == 'l' = 4
+    | otherwise = -1
 
 
 -- Musica
@@ -99,14 +160,17 @@ loadSong (Mus nome fnome delay vel notas) = State
 -- Converte qualquer musica para os objetos dos botoes
 convertNotaToButton :: [Nota] -> Float -> [NotaBotao]
 convertNotaToButton [] _ = []
-convertNotaToButton ((Not tempo tipo dur):xs) vel = (Botao (Not (tempo) tipo dur) (-401)) : (convertNotaToButton xs vel)
+convertNotaToButton ((Not tempo tipo dur):xs) vel
+    | dur < 0.3  =  (Botao (Not (tempo) tipo 0) (praCair)) : (convertNotaToButton xs vel)
+    | otherwise =  (Botao (Not (tempo) tipo dur) (praCair)) : (convertNotaToButton xs vel)
+
 
 
 ----------------------------------------------------
 --Funções para renderizar algo na tela
 --Converte todo o jogo para uma imagem
 convertState :: GuitarState -> IO Picture
-convertState (State (notas) (pont) (pressionado) (tempo) (Mus _ _ _ vel _) _) = do return $ pictures [botoes pressionado,(convertNotas ((pictures [])) notas), drawTempo tempo notas, drawScore pont]
+convertState (State (notas) (pont) (pressionado) (tempo) (Mus _ _ _ vel _) _) = do return $ pictures [botoes pressionado,(convertNotas ((pictures [])) vel notas), drawTempo tempo notas, drawScore pont]
 
 convertState (PreGame (Mus nome fnome _ vel _)) = do
   return $ pictures
@@ -173,35 +237,33 @@ mkBotao pres x = pictures
    where
      tamanhoBase = (tamanhoBot pres 1.2)
      posX = posBotaoX x
---Converte uma nota(bolinhas caindo) para uma imagem
-tamanhoBot :: Bool -> Float -> Float
-tamanhoBot b f
-  | b = tamanhoBotao*f
-  | otherwise = tamanhoBotao
 
-convertNota :: NotaBotao -> Picture
-convertNota (Botao (Not tempo tipo dur) posY) = pictures
+--Converte uma nota(bolinhas caindo) para uma imagem
+convertNota :: Float -> NotaBotao -> Picture
+convertNota vel (Botao (Not tempo tipo dur) posY) = pictures
   [
-    translate px py $ color (light (convertTipoColor tipo)) $ circleSolid tamanhoNota,
+    translate px (py+(rastro/2)) $ color black $ rectangleSolid 8 (rastro+2),
+    translate px (py+(rastro/2)) $ color (convertTipoColor tipo) $ rectangleSolid 6 rastro,
+    translate px py $ color  (convertTipoColor tipo) $ circleSolid tamanhoNota,
     translate px py $ color black $ circleSolid (tamanhoNota*0.6),
     translate px py $ color white $ circleSolid (tamanhoNota*0.5)
   ]
   where
     px = (posBotaoX tipo)
     py = ((-(tamanhoY/2))+posY)
+    rastro =  (max ((tempoToPx vel dur)-tamanhoNota-10) 0)
+
 --Convert todas as bolinhas caindo para uma imagem
-convertNotas :: Picture -> [NotaBotao] -> Picture
-convertNotas p [] = p
-convertNotas p ((Botao x y):xs)
-  | y > -100 = convertNotas (pictures [(convertNota (Botao x y)), p]) xs
-  |otherwise = convertNotas p xs
+convertNotas :: Picture -> Float -> [NotaBotao] -> Picture
+convertNotas p _ [] = p
+convertNotas p vel ((Botao x y):xs)
+  | ((y /= errou) && (y /= praCair)) = convertNotas (pictures [(convertNota vel (Botao x y)), p]) vel xs
+  |otherwise = convertNotas p vel xs
 
 
 drawTempo :: Float -> [NotaBotao] -> Picture
 drawTempo tempo notas = color red $ translate (posBotaoX 5) (fy tamanhoY-30) $ scale 0.2 0.2 $ text $ (show $ roundN ((ultimaNota notas)-tempo+3) 1)
 
-roundN :: Float -> Int -> Float
-roundN f n=  (fromInteger $ round $ f * (10^n)) / (10.0^^n)
 
 drawScore :: GameScore -> Picture
 drawScore (Score sc streak _ _ _) = pictures
@@ -212,20 +274,7 @@ drawScore (Score sc streak _ _ _) = pictures
     color white $ translate ((posBotaoX 5)+9) (fy 120) $ scale 0.2 0.2 $ text $ show streak
   ]
 
-
-convertBoolToColor :: Bool -> Int -> Color
-convertBoolToColor b x
-    | b =  dim $ dim $ dim $ cor
-    | otherwise = dim $ dim $ dim $ dim $ cor
-    where
-      cor = (convertTipoColor x)
-convertTipoColor :: Int -> Color
-convertTipoColor x
-  | x == 0 = green
-  | x == 1 = red
-  | x == 2 = yellow
-  | x == 3 = blue
-  | otherwise = orange
+-- :(
 
 --------------------------------------------------------------
 ---- Entradas e updates do jogo
@@ -256,14 +305,6 @@ removeAcertou tempo tipo (b:bs)
   | acertou tempo b tipo = (removeAcertou tempo tipo bs)
   | otherwise = b : (removeAcertou tempo tipo bs)
 
-near :: Float -> Bool
-near x = x>((tamanhoBotao*2)-40) && x<((tamanhoBotao*2)+40)
-
-setelt :: Int -> Int -> [a] -> a -> [a]
-set _ _ [] _ = []
-setelt x y (k:ks) v
-  | x == y = v:ks
-  | otherwise = k:(setelt x (y+1) ks v)
 
 input :: Event -> GuitarState -> IO GuitarState
 input (EventKey (Char k) t _ _) (State a b c d e f) = do
@@ -276,14 +317,6 @@ input (EventKey (SpecialKey KeyLeft) Down _ _) (PreGame mus) = do return (PreGam
 input (EventKey (SpecialKey KeySpace) Up _ _) (PosGame score mus) = do return (PreGame mus)
 input _ s = do return s
 
-getNumber :: Char -> Int
-getNumber k
-    | k == 'a' = 0
-    | k == 's' = 1
-    | k == 'd' = 2
-    | k == 'k' = 3
-    | k == 'l' = 4
-    | otherwise = -1
 
 ultimaNota :: [NotaBotao] -> Float
 ultimaNota [] = 0.0
@@ -322,15 +355,22 @@ getStreak perdidas streak
 countPerdidas :: [NotaBotao] -> Int
 countPerdidas [] = 0
 countPerdidas ((Botao nota posY):xs)
-  | posY == -404 = 1 + countPerdidas xs
+  | posY == errou = 1 + countPerdidas xs
   | otherwise = countPerdidas xs
+
+-- Grande
+tamanhoBola :: Float -> NotaBotao -> Float
+tamanhoBola vel (Botao (Not n_tempo n_tipo n_dur) posY) = (max ((tempoToPx vel n_dur)) 0)
 
 desceNotas :: [NotaBotao] -> Float -> Float -> [NotaBotao]
 desceNotas [] _ _ = []
 desceNotas ((Botao nota posY):xs) vel tempo
-  | posY == -401 = (checkDesce (Botao nota posY) tempo vel) : (desceNotas xs vel tempo)
-  | posY < -10 = (Botao nota (-404)):(desceNotas xs vel tempo)
+  | posY == praCair = (checkDesce (Botao nota posY) tempo vel) : (desceNotas xs vel tempo)
+  | posY == errou =  ((Botao nota posY)): (desceNotas xs vel tempo)
+  | (posY+tamanho) < -10 = (Botao nota (errou)):(desceNotas xs vel tempo)
   | otherwise = (Botao nota (posY-(fixedTime*vel))):(desceNotas xs vel tempo)
+    where
+       tamanho = (tamanhoBola vel (Botao nota posY))
 
 checkDesce :: NotaBotao -> Float -> Float -> NotaBotao
 checkDesce (Botao (Not tnota tipo dur) posY) tempo vel
@@ -338,9 +378,9 @@ checkDesce (Botao (Not tnota tipo dur) posY) tempo vel
   | otherwise = (Botao (Not tnota tipo dur) posY)
 
 
-
 playMusica :: String -> IO ()
 playMusica a = do
+    soundStopAll
     teste <- sampleFromFile ("./audio/"++a) 1.0
     soundPlay teste 1 1 0 1
 
