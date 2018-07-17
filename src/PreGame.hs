@@ -49,12 +49,12 @@ convertPreGame (PreGame (Mus nome fnome _ vel _)) = do
   --teste <- removeMaybe $ loadJuicy "./img/skin.bmp" ;
        [
     --   teste,
-       translate (fx 40) (fy 500) $ color red $ scale 0.2 0.2 $ text (nome),
-       translate (fx 40) (fy 450) $ color white $ scale 0.2 0.2 $ text "Use as setinhas para escolher a musica",
+       translate (fx 40) (fy (tamanhoY-100)) $ color red $ scale 0.2 0.2 $ text (nome),
+       translate (fx 40) (fy (tamanhoY-150)) $ color white $ scale 0.2 0.2 $ text "Use as setinhas para escolher a musica",
        translate (fx 50) (fy 100) $ color white $ scale 0.25 0.25 $ text "Aperte espaco para comecar",
        mkPreBotao "Tecla A" 0,
        mkPreBotao "Tecla S" 1,
-       mkPreBotao "Tecla D" 2,
+       mkPreBotao "Tecla J" 2,
        mkPreBotao "Tecla K" 3,
        mkPreBotao "Tecla L" 4
       ]
@@ -71,7 +71,7 @@ mkPreBotao txt tipo= pictures
   ]
   where
     x = (fx 100)
-    y = (fy (fromIntegral (180+(4-tipo)*55)))
+    y = (fy ((tamanhoY-500)+(fromIntegral ((4-tipo)*55))))
 
 -- Io
 inputPreGame :: Event -> GuitarState -> IO GuitarState

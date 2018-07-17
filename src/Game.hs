@@ -87,7 +87,7 @@ botoes b = pictures
     mkLinha (((posBotaoX 0) - tamanhoBotao - 8)),
     mkBotao (b!!0) 'A' 0,
     mkBotao (b!!1) 'S' 1,
-    mkBotao (b!!2) 'D' 2,
+    mkBotao (b!!2) 'J' 2,
     mkBotao (b!!3) 'K' 3,
     mkBotao (b!!4) 'L' 4
   ]
@@ -198,7 +198,7 @@ getNumber :: Char -> Int
 getNumber k
     | k == 'a' = 0
     | k == 's' = 1
-    | k == 'd' = 2
+    | k == 'j' = 2
     | k == 'k' = 3
     | k == 'l' = 4
     | otherwise = -1
