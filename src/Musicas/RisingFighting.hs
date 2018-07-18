@@ -5,7 +5,7 @@ import Musicas.Musica
 risingFighting :: Musica
 risingFighting= Mus "The Raising Fighting Spirit" "raisingfighting.ogg" 2.5 (512)
   [
-    (Not 10.02231140625 3 5)
+    (Not 10.02231140625 3 0.5)
    , (Not 10.39731103125 0 0.1339284375)
    , (Not 10.54016803125 0 0.1339284375)
    , (Not 10.68302503125 0 0.1339284375)

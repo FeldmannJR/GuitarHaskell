@@ -38,8 +38,8 @@ loadSong (Mus nome fnome delay vel notas) = State
 convertNotaToButton :: [Nota] -> Float -> [NotaBotao]
 convertNotaToButton [] _ = []
 convertNotaToButton ((Not tempo tipo dur):xs) vel
-    | dur < 0.3  =  (Botao (Not (tempo) tipo 0) (praCair)) : (convertNotaToButton xs vel)
-    | otherwise =  (Botao (Not (tempo) tipo dur) (praCair)) : (convertNotaToButton xs vel)
+    | dur < 0.3  =  (Botao (Not (tempo) tipo 0) (praCair) False (-1)) : (convertNotaToButton xs vel)
+    | otherwise =  (Botao (Not (tempo) tipo dur) (praCair) False (-1)) : (convertNotaToButton xs vel)
 
 
 -- GLOSS

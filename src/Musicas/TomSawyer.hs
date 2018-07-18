@@ -3,7 +3,7 @@ module Musicas.TomSawyer where
 import Musicas.Musica
 
 tomSawyer :: Musica
-tomSawyer = Mus "Tom Sawyer - Rush" "tomsawyer.ogg" 4.5 (700)
+tomSawyer = Mus "Tom Sawyer - Rush" "raisingfighting.ogg" 4.5 (700)
     [
       (Not 12.16 0 0.0435125)
      , (Not 12.16 4 0.0435125)

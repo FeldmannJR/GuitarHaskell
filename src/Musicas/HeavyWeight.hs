@@ -3,7 +3,7 @@ module Musicas.HeavyWeight where
 import Musicas.Musica
 
 heavyWeight :: Musica
-heavyWeight = Mus "HeavyWeight - Infected Mushroom" "heavyweight.ogg" 4.5 (512)
+heavyWeight = Mus "HeavyWeight - Infected Mushroom" "raisingfighting.ogg" 4.5 (512)
     [
       (Not 3.428568 2 0.10714275)
      , (Not 3.428568 3 0.10714275)

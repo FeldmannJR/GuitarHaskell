@@ -35,7 +35,9 @@ module Common  where
   }
   data NotaBotao = Botao{
     nota :: Nota,
-    posY :: Float
+    posY :: Float,
+    nota_acertou :: Bool,
+    lastCheck :: Float
   }
 
   -- State inicial
@@ -90,9 +92,6 @@ module Common  where
   fy :: Float -> Float
   fy y = (-tamanhoY/2)+y
 
-  --checa se o a nota está perto do botao
-  near :: Float -> Bool
-  near x = x>((tamanhoBotao*2)-40) && x<((tamanhoBotao*2)+40)
 
   --Seta elemento X da lista para outro e retorna a lista modificada
   setelt :: Int -> Int -> [a] -> a -> [a]

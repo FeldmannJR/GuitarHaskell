@@ -21,6 +21,7 @@ import Musicas.Musicas
 import Common
 
 
+
 -- ========================== UPDATE
 testaSom :: GuitarState -> IO GuitarState
 testaSom (State notas pont pressionado tempo (Mus name fname delay vel fn) song) = do
@@ -43,27 +44,28 @@ getStreak perdidas streak
 
 countPerdidas :: [NotaBotao] -> Int
 countPerdidas [] = 0
-countPerdidas ((Botao nota posY):xs)
+countPerdidas ((Botao nota posY _ _):xs)
   | posY == errou = 1 + countPerdidas xs
   | otherwise = countPerdidas xs
 
 -- Grande
 tamanhoBola :: Float -> NotaBotao -> Float
-tamanhoBola vel (Botao (Not n_tempo n_tipo n_dur) posY) = (max ((tempoToPx vel n_dur)) 0)
+tamanhoBola vel (Botao (Not n_tempo n_tipo n_dur) posY ac lastCheck) = (max ((tempoToPx vel n_dur)) 0)
 
 desceNotas :: [NotaBotao] -> Float -> Float -> [NotaBotao]
 desceNotas [] _ _ = []
-desceNotas ((Botao nota posY):xs) vel tempo
-  | posY == praCair = (checkDesce (Botao nota posY) tempo vel) : (desceNotas xs vel tempo)
-  | posY == errou =  ((Botao nota posY)): (desceNotas xs vel tempo)
-  | (posY+tamanho) < -10 = (Botao nota (errou)):(desceNotas xs vel tempo)
-  | otherwise = (Botao nota (posY-(fixedTime*vel))):(desceNotas xs vel tempo)
+desceNotas ((Botao nota posY ac lastCheck):xs) vel tempo
+  | posY == praCair = (checkDesce (Botao nota posY ac lastCheck) tempo vel) : (desceNotas xs vel tempo)
+  | posY == errou =  ((Botao nota posY ac lastCheck)): (desceNotas xs vel tempo)
+  | (posY+tamanho) < -10 && (ac==False) = (Botao nota (errou) ac lastCheck):(desceNotas xs vel tempo)
+  | (posY+tamanho) < (tamanhoBotao*2) && (ac==True) = (desceNotas xs vel tempo)
+  | otherwise = (Botao nota (posY-(fixedTime*vel)) ac lastCheck):(desceNotas xs vel tempo)
     where
-       tamanho = (tamanhoBola vel (Botao nota posY))
+       tamanho = (tamanhoBola vel (Botao nota posY ac lastCheck))
 
 ultimaNota :: [NotaBotao] -> Float
 ultimaNota [] = 0.0
-ultimaNota ((Botao (Not n_tempo n_tipo n_dur) n_y):xs) = max (n_tempo) (ultimaNota xs)
+ultimaNota ((Botao (Not n_tempo n_tipo n_dur) n_y _ _):xs) = max (n_tempo+n_dur) (ultimaNota xs)
 
 checkFim :: GuitarState -> GuitarState
 checkFim (State notas score press tempo mus song)
@@ -71,9 +73,9 @@ checkFim (State notas score press tempo mus song)
   | otherwise = (State notas score press tempo mus song)
 
 checkDesce :: NotaBotao -> Float -> Float -> NotaBotao
-checkDesce (Botao (Not tnota tipo dur) posY) tempo vel
-  | ((tempo + (tempoCair vel)) >= tnota) = (Botao (Not tnota tipo dur) tamanhoY)
-  | otherwise = (Botao (Not tnota tipo dur) posY)
+checkDesce (Botao (Not tnota tipo dur) posY ac lastCheck) tempo vel
+  | ((tempo + (tempoCair vel)) >= tnota) = (Botao (Not tnota tipo dur) tamanhoY ac lastCheck)
+  | otherwise = (Botao (Not tnota tipo dur) posY ac lastCheck)
 
 --
 updateGame :: Float -> GuitarState -> IO GuitarState
@@ -122,11 +124,23 @@ tamanhoBot b f
   | otherwise = tamanhoBotao
 --Converte uma nota(bolinhas caindo) para uma imag1em
 convertNota :: Float -> NotaBotao -> Picture
-convertNota vel (Botao (Not tempo tipo dur) posY) = pictures
+convertNota vel (Botao (Not tempo tipo dur) posY True lastCheck) = pictures
+  [
+    translate px (py+(dif/2)) $ color black $ rectangleSolid 12 (dif+2),
+    translate px (py+(dif/2)) $ color (light $ light $ convertTipoColor tipo) $ rectangleSolid 10 dif,
+    translate px (py) $ color (white) $ circleSolid 12
+  ]
+  where
+    px = (posBotaoX tipo)
+    py = fy (tamanhoBotao * 2)
+    rastro = (max ((tempoToPx vel dur)-tamanhoNota-10) 0)
+    dif = max 0 $ (rastro+(posY-(tamanhoBotao*2)))
+
+convertNota vel (Botao (Not tempo tipo dur) posY ac lastCheck) = pictures
   [
     translate px (py+(rastro/2)) $ color black $ rectangleSolid 8 (rastro+2),
-    translate px (py+(rastro/2)) $ color (convertTipoColor tipo) $ rectangleSolid 6 rastro,
-    translate px py $ color  (convertTipoColor tipo) $ circleSolid tamanhoNota,
+    translate px (py+(rastro/2)) $ color cor $ rectangleSolid 6 rastro,
+    translate px py $ color cor $ circleSolid tamanhoNota,
     translate px py $ color black $ circleSolid (tamanhoNota*0.6),
     translate px py $ color white $ circleSolid (tamanhoNota*0.5)
   ]
@@ -134,12 +148,21 @@ convertNota vel (Botao (Not tempo tipo dur) posY) = pictures
     px = (posBotaoX tipo)
     py = ((-(tamanhoY/2))+posY)
     rastro =  (max ((tempoToPx vel dur)-tamanhoNota-10) 0)
+    cor = checkCorPassou posY $ (convertTipoColor tipo)
+
+checkCorPassou :: Float -> Color -> Color
+checkCorPassou f c
+  | passou f = greyN 0.4
+  | otherwise = c
+
+passou :: Float -> Bool
+passou f = (f < ((tamanhoBotao*2)-20))
 
 --Convert todas as bolinhas caindo para uma imagem
 convertNotas :: Picture -> Float -> [NotaBotao] -> Picture
 convertNotas p _ [] = p
-convertNotas p vel ((Botao x y):xs)
-  | ((y /= errou) && (y /= praCair)) = convertNotas (pictures [(convertNota vel (Botao x y)), p]) vel xs
+convertNotas p vel ((Botao x y ac lastCheck):xs)
+  | ((y /= errou) && (y /= praCair)) = convertNotas (pictures [(convertNota vel (Botao x y ac lastCheck)), p]) vel xs
   |otherwise = convertNotas p vel xs
 
 
@@ -185,13 +208,18 @@ acertouNota tempo (x:xs) tipo
   | otherwise = acertouNota tempo (xs) tipo
 
 acertou :: Float -> NotaBotao -> Int -> Bool
-acertou tempo ((Botao (Not ntempo ntipo dur) posY)) tipo = (near posY) && (ntipo == tipo)
+acertou tempo ((Botao (Not ntempo ntipo dur) posY ac lastCheck)) tipo = (near posY) && (ntipo == tipo)
 
 removeAcertou ::  Float -> Int-> [NotaBotao] -> [NotaBotao]
 removeAcertou _ _ [] = []
-removeAcertou tempo tipo (b:bs)
-  | acertou tempo b tipo = (removeAcertou tempo tipo bs)
-  | otherwise = b : (removeAcertou tempo tipo bs)
+removeAcertou tempo tipo ((Botao (Not ntempo ntipo dur) posY ac lastCheck):bs)
+  | acertou tempo (Botao (Not ntempo ntipo dur) posY ac lastCheck) tipo && (dur==0) = (removeAcertou tempo tipo bs)
+  | acertou tempo (Botao (Not ntempo ntipo dur) posY ac lastCheck) tipo && (dur>0) = (Botao (Not ntempo ntipo dur) posY True tempo) : (removeAcertou tempo tipo bs)
+  | otherwise = (Botao (Not ntempo ntipo dur) posY ac lastCheck) : (removeAcertou tempo tipo bs)
+
+--checa se o a nota está perto do botao
+near :: Float -> Bool
+near x = x>((tamanhoBotao*2)-20) && x<((tamanhoBotao*2)+40)
 
 
 getNumber :: Char -> Int

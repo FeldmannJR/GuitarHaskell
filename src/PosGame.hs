@@ -38,3 +38,4 @@ convertPosGame (PosGame (Score pont _ _ _ _) (Mus nome _ _ _ _)) = do
 inputPosGame :: Event -> GuitarState -> IO GuitarState
 inputPosGame (EventKey (SpecialKey KeySpace) Up _ _) (PosGame score mus) = do return (PreGame mus)
 inputPosGame (EventKey (SpecialKey KeyEsc) Down _ _) (PosGame score mus) = do exitSuccess
+inputPosGame _ s = do return s
