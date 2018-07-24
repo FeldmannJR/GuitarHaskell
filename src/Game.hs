@@ -5,11 +5,12 @@ import Control.Monad
 import System.Environment
 import System.FilePath
 import System.Exit
-import Data.ByteString
+
 
 import Control.Concurrent
 import Data.Maybe
 import Graphics.Gloss
+import Data.Cache as C
 import Graphics.Gloss.Interface.IO.Game
 import Graphics.Gloss.Interface.Pure.Game
 import Graphics.Gloss.Interface.Pure.Display
@@ -23,14 +24,19 @@ import Common
 
 
 -- ========================== UPDATE
-testaSom :: GuitarState -> IO GuitarState
-testaSom (State notas pont pressionado tempo (Mus name fname delay vel fn) song) = do
+testaSom :: (Cache String (Sample)) ->  GuitarState -> IO GuitarState
+testaSom cache (State notas pont pressionado tempo (Mus name fname delay vel fn) song) = do
     if ((song==False && tempo >= delay)==False) then
         return  (State notas pont pressionado tempo (Mus name fname delay vel fn) song)
      else do
-        playMusica fname;
+        cu <-  removeMaybe $ C.lookup cache fname
+        playMusica cu
         return (State notas pont pressionado tempo (Mus name fname delay vel fn) True)
-testaSom s = do (return s)
+testaSom _ s = do (return s)
+
+
+
+
 
 checkPerdidas :: GuitarState -> GuitarState -> GuitarState
 checkPerdidas (State n1 _ _ _ _ _) (State n2 (Score pont streak erros acertos perdidas) pres tempo mus song) = (State n2 (Score (pont-(perdidas*10)) (getStreak perdidas streak) (erros) acertos (perdidas+1)) pres tempo mus song)
@@ -78,8 +84,8 @@ checkDesce (Botao (Not tnota tipo dur) posY ac lastCheck) tempo vel
   | otherwise = (Botao (Not tnota tipo dur) posY ac lastCheck)
 
 --
-updateGame :: Float -> GuitarState -> IO GuitarState
-updateGame f (State notas pont pressionado tempo (Mus nome fnome delay vel m_notas) song) = testaSom ( checkFim $ checkPerdidas (State notas pont pressionado tempo (Mus nome fnome delay vel m_notas) song) $ (State (desceNotas notas vel tempo) pont pressionado (tempo+fixedTime) (Mus nome fnome delay vel m_notas) song))
+updateGame ::  (Cache String (Sample)) ->  Float -> GuitarState -> IO GuitarState
+updateGame mus f (State notas pont pressionado tempo (Mus nome fnome delay vel m_notas) song) = testaSom mus ( checkFim $ checkPerdidas (State notas pont pressionado tempo (Mus nome fnome delay vel m_notas) song) $ (State (desceNotas notas vel tempo) pont pressionado (tempo+fixedTime) (Mus nome fnome delay vel m_notas) song))
 
 -- =================================================== GRAPHICS
 -- Converte os botões de baixo ( que são ativavies para imagem)

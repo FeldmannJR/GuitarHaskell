@@ -13,6 +13,7 @@ import Graphics.Gloss.Interface.Pure.Game
 import Graphics.Gloss.Interface.Pure.Display
 import Graphics.Gloss.Juicy
 import Sound.ProteaAudio
+import Data.Cache as C
 
 import Musicas.Musicas
 import Musicas.Musica
@@ -24,17 +25,15 @@ import Pause
 import PosGame
 
 
-removeMaybe:: IO (Maybe a) -> IO a
-removeMaybe = (>>= maybe (ioError $ userError "oops") return)
 
 ----------------------------------------------------
 --Funções para renderizar algo na tela
 --Converte todo o jogo para uma imagem
-convertState :: GuitarState -> IO Picture
-convertState (PreGame mus) = convertPreGame (PreGame mus)
-convertState (State (notas) (pont) (pressionado) (tempo) mus song) = convertGame (State (notas) (pont) (pressionado) (tempo) mus song)
-convertState (Pause state menu volta) = convertPause (Pause state menu volta)
-convertState (PosGame sc mus) = convertPosGame (PosGame sc mus)
+convertState ::  Picture  -> GuitarState -> IO Picture
+convertState logo (PreGame mus) = convertPreGame logo (PreGame mus)
+convertState _ (State (notas) (pont) (pressionado) (tempo) mus song) = convertGame (State (notas) (pont) (pressionado) (tempo) mus song)
+convertState _ (Pause state menu volta)  = convertPause (Pause state menu volta)
+convertState _ (PosGame sc mus)  = convertPosGame (PosGame sc mus)
 
 
 --------------------------------------------------------------
@@ -49,14 +48,31 @@ input ev (Pause state menu volta) = inputPause ev (Pause state menu volta)
 input ev (PosGame score mus) = inputPosGame ev (PosGame score mus)
 
 
-update :: Float -> GuitarState -> IO GuitarState
-update f (State notas pont pressionado tempo mus song) = updateGame f (State notas pont pressionado tempo mus song)
-update f (Pause state menu volta) = updatePause (Pause state menu volta)
-update f s = do return s
+update ::  (Cache String (Sample)) -> Float -> GuitarState -> IO GuitarState
+update m f (State notas pont pressionado tempo mus song) = updateGame m f (State notas pont pressionado tempo mus song)
+update _ f (Pause state menu volta) = updatePause (Pause state menu volta)
+update _ f s = do return s
 
+samples :: [Musica] ->  [(Musica,IO Sample)]
+samples [] = []
+samples (x:xs) =  (x,(loadSample x)):(samples xs)
+
+
+insertMusicas :: (Cache String (Sample))  -> [Musica] -> IO ()
+insertMusicas _ [] = do return ()
+insertMusicas ca ((Mus a b c d e):xs) = do
+    load <- (loadSample (Mus a b c d e))
+    C.insert ca b load
+    insertMusicas ca xs
+    return ()
 
 
 main :: IO ()
 main = do
     result <- initAudio 64 44100 1024;
-    playIO window black fps inicial convertState input update
+    cache <- newCache Nothing :: IO (Cache String ( Sample))
+    insertMusicas (cache) (musicas)
+    k <- keys cache
+    putStrLn $ show k
+    logo <- removeMaybe $ loadJuicyPNG "./img/logo.png"
+    playIO window black fps inicial (convertState logo) input (update cache)

@@ -93,6 +93,9 @@ module Common  where
   fy y = (-tamanhoY/2)+y
 
 
+  removeMaybe:: IO (Maybe a) -> IO a
+  removeMaybe = (>>= maybe (ioError $ userError "oops") return)
+
   --Seta elemento X da lista para outro e retorna a lista modificada
   setelt :: Int -> Int -> [a] -> a -> [a]
   set _ _ [] _ = []
@@ -109,11 +112,10 @@ module Common  where
   roundN :: Float -> Int -> Float
   roundN f n=  (fromInteger $ round $ f * (10^n)) / (10.0^^n)
 
-  playMusica :: String -> IO ()
+  playMusica :: Sample -> IO ()
   playMusica a = do
       soundStopAll
-      teste <- loadSample a
-      soundPlay teste 1 1 0 1
+      soundPlay a 1 1 0 1
 
 
   convertBoolToColor :: Bool -> Int -> Color

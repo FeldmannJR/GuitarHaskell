@@ -43,14 +43,13 @@ convertNotaToButton ((Not tempo tipo dur):xs) vel
 
 
 -- GLOSS
-convertPreGame :: GuitarState -> IO Picture
-convertPreGame (PreGame (Mus nome fnome _ vel _)) = do
+convertPreGame ::  Picture -> GuitarState -> IO Picture
+convertPreGame logo (PreGame (Mus nome fnome _ vel _)) = do
   return $ pictures
-  --teste <- removeMaybe $ loadJuicy "./img/skin.bmp" ;
        [
-    --   teste,
-       translate (fx 40) (fy (tamanhoY-100)) $ color red $ scale 0.2 0.2 $ text (nome),
-       translate (fx 40) (fy (tamanhoY-150)) $ color white $ scale 0.2 0.2 $ text "Use as setinhas para escolher a musica",
+       translate 0 300 $ scale 0.5 0.5 $ logo,
+       translate (fx 40) (fy (tamanhoY-350)) $ color red $ scale 0.2 0.2 $ text (nome),
+       translate (fx 40) (fy (tamanhoY-300)) $ color white $ scale 0.2 0.2 $ text "Use as setinhas para escolher a musica",
        translate (fx 50) (fy 100) $ color white $ scale 0.25 0.25 $ text "Aperte espaco para comecar",
        mkPreBotao "Tecla A" 0,
        mkPreBotao "Tecla S" 1,
@@ -71,7 +70,7 @@ mkPreBotao txt tipo= pictures
   ]
   where
     x = (fx 100)
-    y = (fy ((tamanhoY-500)+(fromIntegral ((4-tipo)*55))))
+    y = (fy ((tamanhoY-650)+(fromIntegral ((4-tipo)*55))))
 
 -- Io
 inputPreGame :: Event -> GuitarState -> IO GuitarState
