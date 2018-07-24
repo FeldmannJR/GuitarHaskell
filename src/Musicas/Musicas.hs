@@ -6,9 +6,10 @@ import Musicas.RisingFighting
 import Musicas.YYZ
 import Musicas.DeusEhGay
 import Musicas.Satanismo
+import Musicas.CalaABoca
 
 musicas :: [Musica]
-musicas =[deusEhGay,satanismo,seekAndDestroy,risingFighting,yyz]
+musicas =[calaaboca,deusEhGay,satanismo,seekAndDestroy,risingFighting,yyz]
 
 nextMusica :: Musica -> Musica
 nextMusica s = nextMus s musicas

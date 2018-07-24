@@ -3,7 +3,7 @@ module Musicas.Satanismo where
 import Musicas.Musica
 
 satanismo :: Musica
-satanismo = Mus "Satanismo Putaria Muita Droga e Violencia - RxDxFx" "satanismo.ogg" 3 (450)
+satanismo = Mus "Sat. P. Muita Droga e Violencia - RxDxFx" "satanismo.ogg" 3 (550)
   [
     (Not 4 0 0.16666666666667)
    , (Not 4.5 2 0.0026041666666667)

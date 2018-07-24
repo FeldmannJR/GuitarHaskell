@@ -27,11 +27,11 @@ import PreGame
 
 
 convertPosGame :: GuitarState -> IO Picture
-convertPosGame (PosGame (Score pont _ _ _ _) (Mus nome _ _ _ _)) = do
+convertPosGame (PosGame (Score pont _ erros perdidas acertos) (Mus nome _ _ _ _)) = do
     return $ pictures
         [
-        translate (fx 50) (fy 550) $ color green $ scale 0.2 0.2 $ text nome,
-        translate (fx 100) (fy 200) $ color red $ scale 0.3 0.3 $ text ("Score " ++ (show $ pont-1))
+        translate (fx 50) (fy 550) $ color yellow $ scale 0.2 0.2 $ text nome,
+        translate (fx 100) (fy 200) $ color red $ scale 0.3 0.3 $ text ("Score " ++ (show $ pont))
         ]
 
 -- Io

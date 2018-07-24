@@ -1,29 +1,21 @@
 [Song]
 {
 	Name = "Satanismo Putaria Muita Droga e Violencia"
-	Artist = "Unknown Artist"
-	Charter = "Unknown Charter"
 	Offset = 0
 	Resolution = 192
 	Player2 = bass
-	Difficulty = 0
-	PreviewStart = 0.00
-	PreviewEnd = 0.00
-	Genre = "rock"
-	MediaType = "cd"
-	MusicStream = "Satanismo Putaria Muita Droga e Violencia.mp3"
 }
 [SyncTrack]
 {
-	0 = B 120000
 	0 = TS 4
+	0 = B 120000
 }
 [Events]
 {
 }
 [ExpertSingle]
 {
-	384 = N 0 64
+	384 = N 0 0
 	576 = N 2 0
 	640 = N 1 0
 	704 = N 1 0
@@ -35,8 +27,8 @@
 	1088 = N 0 0
 	1216 = N 0 1088
 	1216 = N 2 1088
-	2304 = N 2 0
 	2304 = N 0 0
+	2304 = N 2 0
 	2368 = N 0 0
 	2368 = N 2 0
 	2496 = N 1 0
@@ -105,8 +97,8 @@
 	7728 = N 1 0
 	7840 = N 0 0
 	7840 = N 2 0
-	7872 = N 2 0
 	7872 = N 0 0
+	7872 = N 2 0
 	8160 = N 1 0
 	8304 = N 0 0
 	8328 = N 1 0
@@ -121,8 +113,8 @@
 	8832 = N 1 0
 	8944 = N 0 0
 	8944 = N 2 0
-	8976 = N 2 0
 	8976 = N 0 0
+	8976 = N 2 0
 	9264 = N 1 0
 	9408 = N 0 0
 	9432 = N 1 0
@@ -137,8 +129,8 @@
 	9936 = N 1 0
 	10048 = N 0 0
 	10048 = N 2 0
-	10080 = N 2 0
 	10080 = N 0 0
+	10080 = N 2 0
 	10368 = N 1 0
 	10512 = N 0 0
 	10536 = N 1 0
@@ -153,8 +145,8 @@
 	11040 = N 1 0
 	11152 = N 0 0
 	11152 = N 2 0
-	11184 = N 2 0
 	11184 = N 0 0
+	11184 = N 2 0
 	11280 = N 2 0
 	11328 = N 0 0
 	11520 = N 2 0
@@ -464,4 +456,49 @@
 	34320 = N 1 0
 	34416 = N 2 0
 	34464 = N 0 0
+}
+[HardSingle]
+{
+}
+[MediumSingle]
+{
+}
+[EasySingle]
+{
+}
+[ExpertDoubleGuitar]
+{
+}
+[HardDoubleGuitar]
+{
+}
+[MediumDoubleGuitar]
+{
+}
+[EasyDoubleGuitar]
+{
+}
+[ExpertDoubleBass]
+{
+}
+[HardDoubleBass]
+{
+}
+[MediumDoubleBass]
+{
+}
+[EasyDoubleBass]
+{
+}
+[ExpertDrums]
+{
+}
+[HardDrums]
+{
+}
+[MediumDrums]
+{
+}
+[EasyDrums]
+{
 }
