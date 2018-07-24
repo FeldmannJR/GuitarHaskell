@@ -4,7 +4,6 @@ import Control.Monad
 import System.Environment
 import System.FilePath
 import System.Exit
-import Data.ByteString
 
 import Control.Concurrent
 import Data.Maybe
@@ -48,13 +47,13 @@ input e (PreGame mus) = inputPreGame e (PreGame mus)
 input ev (State a b c d e f) = (inputGame ev (State a b c d e f))
 input ev (Pause state menu volta) = inputPause ev (Pause state menu volta)
 input ev (PosGame score mus) = inputPosGame ev (PosGame score mus)
-input _ s = do return s
 
 
 update :: Float -> GuitarState -> IO GuitarState
 update f (State notas pont pressionado tempo mus song) = updateGame f (State notas pont pressionado tempo mus song)
 update f (Pause state menu volta) = updatePause (Pause state menu volta)
 update f s = do return s
+
 
 
 main :: IO ()

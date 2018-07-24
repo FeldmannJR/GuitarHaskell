@@ -112,8 +112,9 @@ module Common  where
   playMusica :: String -> IO ()
   playMusica a = do
       soundStopAll
-      teste <- sampleFromFile ("./audio/"++a) 1.0
+      teste <- loadSample a
       soundPlay teste 1 1 0 1
+
 
   convertBoolToColor :: Bool -> Int -> Color
   convertBoolToColor b x

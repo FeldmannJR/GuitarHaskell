@@ -1,13 +1,14 @@
 module Musicas.Musicas where
 
 import Musicas.Musica
-import Musicas.HeavyWeight
+import Musicas.SeekAndDestroy
 import Musicas.RisingFighting
-import Musicas.TomSawyer
+import Musicas.YYZ
+import Musicas.DeusEhGay
 
 
 musicas :: [Musica]
-musicas =[heavyWeight,risingFighting,tomSawyer]
+musicas =[deusEhGay,seekAndDestroy,risingFighting,yyz]
 
 nextMusica :: Musica -> Musica
 nextMusica s = nextMus s musicas
